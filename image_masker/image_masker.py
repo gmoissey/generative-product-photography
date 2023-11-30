@@ -1,5 +1,3 @@
-# image_masker.py
-
 import cv2
 import numpy as np
 
@@ -24,31 +22,23 @@ def select_roi(image):
     """
     return cv2.selectROI('Select ROI', image, True)
 
-def create_mask(image, roi, inverse=True):
+def create_mask(image, roi):
     """
-    Creates a binary mask for the image based on the selected ROI. 
-    The mask will be strictly black and white.
+    Creates a mask for the image based on the selected ROI using GrabCut algorithm.
 
     :param image: Source image.
-    :param roi: Region of Interest (x, y, width, height).
-    :param inverse: If True, the area outside the ROI is white. Defaults to False.
-    :return: Binary mask image.
+    :param roi: Region of Interest.
+    :return: Masked image.
     """
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    bgdmodel = np.zeros((1, 65), np.float64)
+    fgdmodel = np.zeros((1, 65), np.float64)
+    cv2.grabCut(image, mask, roi, bgdmodel, fgdmodel, 10, mode=cv2.GC_INIT_WITH_RECT)
 
-    if inverse:
-        # Inverse mask: the area outside the ROI is white
-        mask[:] = 255  # Set the whole mask to white
-        mask[int(roi[1]):int(roi[1] + roi[3]), int(roi[0]):int(roi[0] + roi[2])] = 0  # Set ROI to black
-    else:
-        # Regular mask: the area inside the ROI is white
-        mask[int(roi[1]):int(roi[1] + roi[3]), int(roi[0]):int(roi[0] + roi[2])] = 255  # Set ROI to white
+    # Create a binary mask where the background is white (255) and the foreground (object) is black (0)
+    mask2 = np.where((mask == 2) | (mask == 0), 255, 0).astype('uint8')
 
-    return mask
-
-    return cv2.bitwise_and(image, image, mask=mask2)
-
-
+    return mask2
 
 def main(image_path):
     """
@@ -58,8 +48,8 @@ def main(image_path):
     """
     src = resize_image(image_path)
     r = select_roi(src)
-    result = create_mask(src, r)
-    cv2.imshow("Masked Image", result)
+    mask = create_mask(src, r)
+    cv2.imshow("Mask", mask)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

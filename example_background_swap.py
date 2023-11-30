@@ -19,10 +19,10 @@ class DTYPE(enum.Enum):
 @app.command()
 def run_inpainting(
     image_path: Path = typer.Option(
-        default=Path("images/lambo.jpg"), help="Path to input image"
+        default=Path("images/watch.png"), help="Path to input image"
     ),
     save_path: Path = typer.Option(
-        default=Path("images/inpainting_lambo.png"), help="Saves output image to *save_path*"
+        default=Path("images/inpainting_watch_test.png"), help="Saves output image to *save_path*"
     ),
     save_concat: bool = typer.Option(
         default=True, help="Saves concatenated image, mask and inpaint to *save_path*"
@@ -81,26 +81,32 @@ def run_inpainting(
     mask = PIL.Image.fromarray(mask).convert("RGB")
     mask.thumbnail((max_image_side, max_image_side))
 
-    image_result = pipeline(
-        prompt=prompt,
-        image=image,
-        mask_image=mask,
-        strength=strength,
-        num_inference_steps=num_inference_steps,
-        guidance_scale=guidance_scale,
-        generator=torch.manual_seed(seed),
-    ).images[0]
+    for i in range(30):  # Iterate over 30 different seeds
+        current_seed = seed + i  # Increment seed for each iteration
+        image_result = pipeline(
+            prompt=prompt,
+            image=image,
+            mask_image=mask,
+            strength=strength,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            generator=torch.manual_seed(current_seed),
+        ).images[0]
 
-    if save_concat:
-        # Concat original image, mask, and inpainted image
-        concat = PIL.Image.new("RGB", (image.width * 3, image.height))
-        concat.paste(image, (0, 0))
-        concat.paste(mask, (image.width, 0))
-        concat.paste(image_result, (image.width * 2, 0))
+        if save_concat:
+            # Concat original image, mask, and inpainted image
+            concat = PIL.Image.new("RGB", (image.width * 3, image.height))
+            concat.paste(image, (0, 0))
+            concat.paste(mask, (image.width, 0))
+            concat.paste(image_result, (image.width * 2, 0))
 
-        concat.save(save_path)
-    else:
-        image_result.save(save_path)
+            # Save each concatenated image with a unique filename
+            concat_save_path = save_path.parent / f"{save_path.stem}_seed_{current_seed}{save_path.suffix}"
+            concat.save(concat_save_path)
+        else:
+            # Save each result image with a unique filename
+            result_save_path = save_path.parent / f"{save_path.stem}_seed_{current_seed}{save_path.suffix}"
+            image_result.save(result_save_path)
 
 if __name__ == "__main__":
     app()
